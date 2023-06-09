@@ -134,13 +134,78 @@ double approx(const Point &bPoint, Solver *solver)
     return solver->getAngle();
 }
 
+#define MAX_ITER 2
+
+#include <cstdint>
+std::int32_t tan_table[] = {
+    572840,
+ 267745,
+ 131759,
+  65621,
+  32779,
+  16385,
+   8192,
+   4096,
+   2048,
+   1024
+};
+
+#define FLOAT_TO_FP(x, p) ((std::int32_t)(x * (double)(1 << (p))))
+#define FP_TO_FLOAT(x, p) ((double)(x) / (double)(1 << (p)))
+
+double float_cordic_approx_angle(double x, double y) {
+    double xp = x;
+    double yp = y;
+    double zp = 0.0;
+
+    double xn = 0.0;
+    double yn = 0.0;
+    double zn = 0.0;
+    for (std::size_t i = 0; i < MAX_ITER; ++i) {
+        double k = 1.0/pow(2.0, i+1);
+        double sign = yp < 0.0 ? 1.0 : -1.0;
+        xn = xp - sign*k*yp;
+        yn = yp + sign*k*xp;
+        zn = zp - sign*tan(k);
+
+        xp = xn;
+        yp = yn;
+        zp = zn;
+    }
+
+    return zn;
+}
+
+
+double fixed_point_cordic_approx_angle(double x, double y) {
+    std::int32_t xp = FLOAT_TO_FP(x, 20);
+    std::int32_t yp = FLOAT_TO_FP(y, 20);
+    std::int32_t zp = 0.0;
+
+    std::int32_t xn = 0.0;
+    std::int32_t yn = 0.0;
+    std::int32_t zn = 0.0;
+    for (std::size_t i = 0; i < MAX_ITER; ++i) {
+        std::int32_t sign = yp < 0 ? 1 : -1;
+        xn = xp - sign*(yp >> 1);
+        yn = yp + sign*(xp >> 1);
+        zn = zp - sign*tan_table[i];
+
+        xp = xn;
+        yp = yn;
+        zp = zn;
+    }
+
+    return FP_TO_FLOAT(zn, 20);
+}
+
 int main()
 {
     double x = 0.5;
     double y = 0.866025;
 
-    double x0 = 0.866;
-    double y0 = 0.5;
+    double x0 = 0.707;
+    double y0 = 0.707;
     
     Point p(x,y);
     Point p0(x0,y0);
@@ -149,7 +214,15 @@ int main()
     Cordic cordicSolver;
 
     //std::cout << approx(p, &rmSolver) << '\n';
-    std::cout << approx(p0, &cordicSolver) << '\n';
+    // std::cout << approx(p0, &cordicSolver) << '\n';
+    // std::cout << "====================" << std::endl;
+    // std::cout << approx(p0, &cordicSolver) << '\n';
+
+    std::cout << "=====================" << std::endl;
+    std::cout << float_cordic_approx_angle(x0,y0) / 3.14159265358979323846 * 180 << '\n';
+    std::cout << "=====================" << std::endl;
+    std::cout << fixed_point_cordic_approx_angle(x0,y0) / 3.14159265358979323846 * 180 << '\n';
+
 
     return 0;
 }
