@@ -3,7 +3,7 @@
 #include <limits>
 #include <float.h>
 
-#define DEBUG 1
+#define DEBUGn 1
 #define EPS 0.0000001
 
 struct Point
@@ -31,6 +31,7 @@ public:
         const Point &prev) = 0;
     virtual void reduceStep() = 0;
     virtual void updateAngle(const double signY) = 0;
+    virtual void reset() = 0;
     double getAngle()
     {
         return angle;
@@ -57,14 +58,15 @@ public:
     {
         angle += signY * step;
     }
+    void reset(){}
 };
 class Cordic : public Solver
 {
 private:
     int iter = 0;
     double powOf2fact = 1;
-    //const double factorK = 0.6072529;
-    const double factorK = 1.0;
+    const double factorK = 0.6072529;
+    //const double factorK = 1.0;
     const double fact00 = 1.0;
     double fact01 = 0.0;
     double fact10 = 0.0;
@@ -103,16 +105,24 @@ public:
     void updateAngle(const double signY)
     {
 #ifdef DEBUG
-        printf("Angle: %f\n\n", angle);
+        printf("Angle: %f\n\n", (-signY * datan(powOf2fact)));
 #endif
         angle = angle - signY * datan(powOf2fact);
     }
-
+    void reset()
+    {
+        angle = 0.0;
+        iter = 0;
+        powOf2fact = 1;
+        fact01 = 0.0;
+        fact10 = 0.0;
+    }
 };
 
 
 double approx(const Point &bPoint, Solver *solver)
 {
+    solver->reset();
     Point nPoint(bPoint.x, bPoint.y);
 
 #ifdef DEBUG
@@ -141,15 +151,23 @@ int main()
 
     double x0 = 0.866;
     double y0 = 0.5;
-    
+
+    double x1 = 0.951057;
+    double y1 = 0.309017;
+
     Point p(x,y);
     Point p0(x0,y0);
+    Point p1(x1,y1);
 
     RotationMatrix rmSolver;
     Cordic cordicSolver;
 
     //std::cout << approx(p, &rmSolver) << '\n';
-    std::cout << approx(p0, &cordicSolver) << '\n';
+    //std::cout << approx(p0, &cordicSolver) << '\n';
+    //std::cout << approx(p1, &rmSolver) << '\n';
+    std::cout << approx(p1, &cordicSolver) << '\n'; // 18
+    std::cout << approx(p0, &cordicSolver) << '\n'; // 30
+    std::cout << approx(p, &cordicSolver) << '\n';  // 60
 
     return 0;
 }
